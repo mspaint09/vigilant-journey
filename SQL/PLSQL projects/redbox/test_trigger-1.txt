@@ -1,0 +1,33 @@
+Test your triggers.
+Note: In order for your trigger to fail, you may need to change the time to be outside the
+range of your current time in class. For example, while testing, you may want valid video
+hours in your trigger to be from 6:00 p.m. to 8:00 a.m.
+-- First determine current timezone and time
+SELECT SESSIONTIMEZONE,
+TO_CHAR(CURRENT_DATE, 'DD-MON-YYYY HH24:MI') CURR_DATE
+FROM DUAL;
+-- Change your time zone usinge [+|-]HH:MI format such that the current
+-- time returns a time between 6pm and 8am
+ALTER SESSION SET TIME_ZONE='-07:00';
+Session altered.
+SELECT SESSIONTIMEZONE,
+TO_CHAR(CURRENT_DATE, 'DD-MON-YYYY HH24:MI') CURR_DATE
+FROM DUAL;
+-- Add a new member (for a sample test)
+EXECUTE video_pkg.new_member('Elias', 'Elliane', 'Vine Street','California', '789-123-4567');
+BEGIN video_pkg.new_member('Elias', 'Elliane', 'Vine Street',
+'California', '789-123-4567'); END;
+*
+ERROR at line 1:
+ORA-20999: Unhandled error in NEW_MEMBER. Please contact your application
+administrator with the following information: ORA-20999: Data changes
+restricted to office hours.
+ORA-06512: at "ORA1.TIME_CHECK", line 9
+ORA-06512: at "ORA1.MEMBER_TRIG", line 1
+ORA-04088: error during execution of trigger 'ORA1.MEMBER_TRIG'
+ORA-06512: at "ORA1.VIDEO_PKG", line 12
+ORA-06512: at "ORA1.VIDEO_PKG", line 171
+ORA-06512: at line 1
+-- Restore the original time zone for your session.
+ALTER SESSION SET TIME_ZONE='-00:00';
+Session altered.

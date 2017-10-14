@@ -1,0 +1,109 @@
+1. Load and execute the final.sql script to create all
+the required tables, sequences and data that are needed for this exercise.
+
+Run these commands to verify that the data has been loaded.
+
+select count(*) member from member;
+select count(*) rental from rental;
+select count(*) reservation from reservation;
+select count(*) title from title;
+select count(*) title_copy from title_copy;
+
+2. Create a package named VIDEO_PKG with the following procedures and functions:
+
+a. NEW_MEMBER: A public procedure that adds a new member to the MEMBER table. For the member ID number, use the sequence MEMBER_ID_SEQ; for the join date, use SYSDATE. Pass all other values to be inserted
+into a new row as parameters.
+
+b. NEW_RENTAL: An overloaded public function to record a new rental. Pass the title ID number for the video that a customer wants to rent, and either the customer’s last name or his member ID number into the function. The function should return the due date for the video. Due dates are three days from the date the video is rented. 
+
+If the status for a movie requested is listed as AVAILABLE in
+the TITLE_COPY table for one copy of this title, then update this TITLE_COPY
+table and set the status to RENTED. If there is no copy available, the function
+must return NULL. Then, insert a new record into the RENTAL table identifying
+the booked date as today’s date, the copy ID number, the member ID number,
+the title ID number, and the expected return date. Be aware of multiple
+customers with the same last name. In this case, have the function return NULL,
+and display a list of the customers’ names that match and their ID numbers.
+
+c. RETURN_MOVIE: A public procedure that updates the status of a video
+(available, rented, or damaged) and sets the return date. Pass the title ID, the
+copy ID, and the status to this procedure. Check whether there are reservations
+for that title and display a message if it is reserved. Update the RENTAL table
+and set the actual return date to today’s date. Update the status in the
+TITLE_COPY table based on the status parameter passed into the procedure.
+
+d. RESERVE_MOVIE: A private procedure that executes only if all the video
+copies requested in the NEW_RENTAL procedure have a status of RENTED. Pass
+the member ID number and the title ID number to this procedure. Insert a new
+record into the RESERVATION table and record the reservation date, member
+ID number, and title ID number. Print a message indicating that a movie is
+reserved and its expected date of return.
+
+e. EXCEPTION_HANDLER: A private procedure that is called from the exception
+handler of the public programs. Pass the SQLCODE number to this procedure,
+and the name of the program (as a text string) where the error occurred. Use
+RAISE_APPLICATION_ERROR to raise a customized error. Start with a
+unique key violation (-1) and foreign key violation (-2292). Allow the
+exception handler to raise a generic error for any other errors.
+
+3. Use the following scripts to test your routines:
+Cut & paste the ACTUAL results from sqlplus or sqldeveloper when you execute the queries.
+
+a. Add two members.
+
+SET SERVEROUTPUT ON
+EXECUTE red_video_pkg.new_member('Haas', 'James', 'Chestnut Street', 'Boston', '617-123-4567');
+
+SET SERVEROUTPUT ON
+EXECUTE  red_video_pkg.new_member('Biri', 'Allan',  'Hiawatha Drive', 'New York', '516-123-4567');
+
+select * from member where member_id > 109;
+
+What happens if you execute the two procedures a second time? Is that correct?
+
+b. Add new video rentals.
+
+SET SERVEROUTPUT ON
+EXEC DBMS_OUTPUT.PUT_LINE(red_video_pkg.new_rental(110, 98));
+select * from rental where member_id = 110;
+
+EXEC DBMS_OUTPUT.PUT_LINE(red_video_pkg.new_rental(109, 93));
+select * from rental where member_id = 109;
+
+
+EXEC DBMS_OUTPUT.PUT_LINE(red_video_pkg.new_rental(107, 98));
+select * from rental where member_id = 107;
+
+
+EXEC DBMS_OUTPUT.PUT_LINE(red_video_pkg.new_rental('Biri', 97));
+Warning! More than one member by this name.
+111	Biri, Allan
+108	Biri, Ben
+
+EXEC DBMS_OUTPUT.PUT_LINE(red_video_pkg.new_rental(97, 97));
+
+
+c. Return movies.
+
+SET SERVEROUTPUT ON
+EXECUTE red_video_pkg.return_movie(98, 1, 'AVAILABLE');
+select * from reservation;
+select * from title_copy where title_id = 98;
+
+SET SERVEROUTPUT ON
+EXECUTE red_video_pkg.return_movie(95, 3, 'AVAILABLE');
+select * from title_copy where title_id = 95;
+select * from rental where title_id = 95;
+
+EXECUTE red_video_pkg.return_movie(111, 1, 'RENTED');
+
+4. The business hours for the video store are 8:00 a.m. to 10:00 p.m., Sunday through
+Friday, and 8:00 a.m. to 12:00 a.m. on Saturday. To ensure that the tables can be
+modified only during these hours, create a stored procedure that is called by triggers on the tables.
+
+a. Create a stored procedure called TIME_CHECK that checks the current time against business hours. If the current time is not within business hours, use the
+RAISE_APPLICATION_ERROR procedure to give an appropriate message.
+
+b. Create a trigger on each of the five tables. Fire the trigger before data is inserted, updated, and deleted from the tables. Call your TIME_CHECK procedure from each of these triggers.
+
+c. Demonstrate that your triggers fire by executing your sql commands during off hours.

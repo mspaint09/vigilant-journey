@@ -1,0 +1,215 @@
+NOTE The package should be called RED_VIDEO_PKG 
+
+
+
+
+----------------------------------------------------
+run as sys
+
+drop user x1 cascade;
+create user x1 identified by x1 account unlock quota 25 M on users;
+grant connect,resource to x1;
+-------------------------------------------------------------
+run as x1
+
+Running script to create tables etc..
+table RENTAL dropped.
+table RESERVATION dropped.
+table TITLE_COPY dropped.
+table TITLE dropped.
+table MEMBER dropped.
+Please wait while tables are created....
+table MEMBER created.
+table TITLE created.
+table TITLE_COPY created.
+table RENTAL created.
+table RESERVATION created.
+Tables created.
+sequence TITLE_ID_SEQ dropped.
+sequence MEMBER_ID_SEQ dropped.
+Creating Sequences...
+sequence MEMBER_ID_SEQ created.
+sequence TITLE_ID_SEQ created.
+Sequences created.
+Populate the above tables.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+committed.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+committed.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+committed.
+1 rows inserted.
+1 rows inserted.
+committed.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+1 rows inserted.
+committed.
+** Tables built and data loaded **
+-------------------------------------------
+Q1.
+select count(*) member from member;
+select count(*) rental from rental;
+select count(*) reservation from reservation;
+select count(*) title from title;
+select count(*) title_copy from title_copy;
+
+    MEMBER
+----------
+         9 
+
+    RENTAL
+----------
+         5 
+
+RESERVATION
+-----------
+          2 
+
+     TITLE
+----------
+         7 
+
+TITLE_COPY
+----------
+        11 
+
+------------------------------------------
+Q2.
+
+PACKAGE RED_VIDEO_PKG compiled
+No Errors.
+
+
+PACKAGE BODY RED_VIDEO_PKG compiled
+No Errors.
+
+-----------------------------------------------
+
+Q3.
+(a)
+anonymous block completed
+anonymous block completed
+ MEMBER_ID LAST_NAME                 FIRST_NAME                ADDRESS                                                                                              CITY                           PHONE                     JOIN_DATE
+---------- ------------------------- ------------------------- ---------------------------------------------------------------------------------------------------- ------------------------------ ------------------------- ---------
+       110 Haas                      James                     Chestnut Street                                                                                      Boston                         617-123-4567              19-MAY-17 
+       111 Biri                      Allan                     Hiawatha Drive 
+       
+       
+       
+ (b)
+ 
+ 
+ anonymous block completed
+ 22-MAY-17
+ 
+ BOOK_DATE    COPY_ID  MEMBER_ID   TITLE_ID ACT_RET_DATE EXP_RET_DATE
+ --------- ---------- ---------- ---------- ------------ ------------
+19-MAY-17          2        110         98              22-MAY-17    
+ 
+anonymous block completed
+22-MAY-17
+
+BOOK_DATE    COPY_ID  MEMBER_ID   TITLE_ID ACT_RET_DATE EXP_RET_DATE
+--------- ---------- ---------- ---------- ------------ ------------
+19-MAY-17          1        109         93              22-MAY-17    
+
+anonymous block completed
+Movie reserved. Expected back on: 18-MAY-17
+
+
+no rows selected
+
+anonymous block completed
+Warning! More than one member by this name.
+111	Biri, Allan
+113	Biri, Allan
+108	Biri, Ben
+
+Error starting at line 1 in command:
+EXEC DBMS_OUTPUT.PUT_LINE(red_video_pkg.new_rental(97, 97))
+Error report:
+ORA-20002: NEW_RENTAL has attempted to use a foreign key value that is invalid
+ORA-06512: at "X1.RED_VIDEO_PKG", line 9
+ORA-06512: at "X1.RED_VIDEO_PKG", line 100
+ORA-06512: at line 1
+
+(c)
+
+anonymous block completed
+Put this movie on hold -- reserved by member #107
+
+RES_DATE   MEMBER_ID   TITLE_ID
+--------- ---------- ----------
+17-MAY-17        106        102 
+18-MAY-17        101         93 
+19-MAY-17        107         98 
+
+   COPY_ID   TITLE_ID STATUS        
+---------- ---------- ---------------
+         1         98 AVAILABLE       
+         2         98 RENTED          
+
+anonymous block completed
+   COPY_ID   TITLE_ID STATUS        
+---------- ---------- ---------------
+         1         95 AVAILABLE       
+         2         95 AVAILABLE       
+         3         95 AVAILABLE       
+
+BOOK_DATE    COPY_ID  MEMBER_ID   TITLE_ID ACT_RET_DATE EXP_RET_DATE
+--------- ---------- ---------- ---------- ------------ ------------
+17-MAY-17          3        102         95 19-MAY-17    19-MAY-17    
+
+Error starting at line 1 in command:
+EXECUTE red_video_pkg.return_movie(111, 1, 'RENTED')
+Error report:
+ORA-20999: Unhandled error in RETURN_MOVIE. Please contact your application administrator with the following information: 
+ORA-01403: no data found
+ORA-06512: at "X1.RED_VIDEO_PKG", line 12
+ORA-06512: at "X1.RED_VIDEO_PKG", line 67
+ORA-06512: at line 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
