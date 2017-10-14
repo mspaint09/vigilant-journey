@@ -18,7 +18,7 @@ int main()
     ((numLet + 30) * (numLet+30))));
     	
     // first section stating the required information like last name
-    cout << "My last name is Miramontes\n";
+    cout << "My last name is \n";
     // student id
     cout << "My Student ID is: " << studID << endl;
     // number of characters in my last name
@@ -39,7 +39,7 @@ int main()
 } 
 // ------------ OUTPUT PASTED FROM SCREEN ------------
 /*
-My last name is Miramontes
+My last name is
 My Student ID is: 20306996
 The number of characters in my last name is 10
 
