@@ -1,0 +1,360 @@
+ 
+SPOOL ON TO 'c:..';
+ 
+conn / as sysdba;
+drop user xyz cascade;
+drop user x1 cascade;
+drop user x2 cascade;
+
+create user xyz identified by xyz account unlock quota 25M on users;
+grant connect,resource to xyz;
+grant execute on dbms_alert to xyz;
+grant create view to xyz;
+
+create user x1 identified by x1 account unlock;
+grant connect,resource to x1;
+create user x2 identified by x2 account unlock;
+grant connect,resource to x2;
+
+conn xyz/xyz
+
+DROP VIEW high_bids;
+DROP TABLE bids;
+DROP TABLE auction_items;
+
+CREATE TABLE auction_items(
+          ID            VARCHAR2(20)  NOT NULL PRIMARY KEY
+    ,     description   VARCHAR2(200) NOT NULL
+    ,     min_bid       NUMBER        NOT NULL
+    ,     curr_bid      NUMBER
+    ,     status        VARCHAR2(10) CONSTRAINT   valid_status  CHECK (status IN ('OPEN','CLOSED') )
+);
+
+CREATE TABLE bids(
+            bidder        VARCHAR2(30)
+    ,       item_id       VARCHAR2(20)   REFERENCES auction_items(ID)  ON DELETE CASCADE
+    ,       bid           NUMBER         NOT NULL
+);
+
+CREATE OR REPLACE VIEW high_bids(
+        item_id
+       ,item_desc
+       ,bidder
+       ,high_bid)
+    AS
+    SELECT
+            BID.item_id
+           ,AI.description
+          ,BID.bidder
+          ,BID.bid
+     FROM
+           bids           BID
+          ,auction_items  AI
+    WHERE
+           BID.item_id    = AI.id
+      AND  BID.bid        = (SELECT  MAX(bid)
+                               FROM  bids    B2
+                             WHERE  BID.item_id = B2.item_id)
+  /
+
+ -- End Auction.sql
+ --Auction1
+ CREATE OR REPLACE PACKAGE auction
+      /*
+      || Implements a simple interactive bidding system
+      || using DBMS_ALERT to keep bidders informed
+      || of activity in items they are interested in.
+      ||
+      || The item_id is used as the ALERT name for the
+      || item.
+      ||
+      ||
+      || Compilation Requirements:
+      ||
+      || EXECUTE on DBMS_ALERT
+      || SELECT, UPDATE on AUCTION_ITEMS
+      || INSERT on BIDS
+      || SELECT on HIGH_BIDS
+      ||
+      || Execution Requirements:
+      ||
+      */
+   AS
+      /*
+      || exceptions raised and handled in PLACE_BID
+      || procedure
+      */
+      invalid_item   EXCEPTION;
+      bid_too_low    EXCEPTION;
+      item_is_closed EXCEPTION;
+ 
+      /*
+      || place a bid on an item, the bid must exceed any
+      || other bids on the item (and the minimum bid)
+      ||
+      || bidding on an item registers interest in the
+      || item using DBMS_ALERT.REGISTER
+      ||
+      || only this procedure should be used to add rows
+      || to the bids table, since it also updates
+      || auction_items.curr_bid column
+      */
+      PROCEDURE place_bid
+         (item_id_IN IN VARCHAR2
+         ,bid_IN IN NUMBER);
+ 
+      /*
+      || close bidding on an item
+      */
+      PROCEDURE close_item(item_id_IN IN VARCHAR2);
+ 
+      /*
+      || watch for any alerts on items bid by the user
+      || indicating other users have raised the bid
+      */
+      PROCEDURE watch_bidding(timeout_secs_IN IN NUMBER:=300);
+ 
+   END auction;
+/
+
+CREATE OR REPLACE PACKAGE BODY auction
+AS
+     FUNCTION curr_bid(item_id_IN IN VARCHAR2)
+     RETURN NUMBER
+     IS
+        temp_bid   NUMBER;
+     BEGIN
+        SELECT curr_bid
+          INTO temp_bid
+          FROM auction_items
+        WHERE id = item_id_IN;
+
+        RETURN temp_bid;
+
+     EXCEPTION
+        WHEN OTHERS
+           THEN RETURN NULL;
+     END curr_bid;
+
+     PROCEDURE place_bid
+       (item_id_IN IN VARCHAR2
+       ,bid_IN IN NUMBER)
+    IS
+       temp_curr_bid   auction_items.curr_bid%TYPE;
+       temp_status     auction_items.status%TYPE;
+       CURSOR auction_item_cur
+       IS
+       SELECT NVL(curr_bid,min_bid), status
+         FROM auction_items
+        WHERE id = item_id_IN
+          FOR UPDATE OF curr_bid;
+    BEGIN
+       /*
+       || lock row in auction_items
+       */
+       OPEN auction_item_cur;
+       FETCH auction_item_cur INTO temp_curr_bid, temp_status;
+       /*
+       || do some validity checks
+       */
+       IF auction_item_cur%NOTFOUND
+       THEN
+          RAISE invalid_item;
+       ELSIF temp_status = 'CLOSED'
+       THEN
+          RAISE item_is_closed;
+       ELSIF bid_IN <= temp_curr_bid
+       THEN
+          RAISE bid_too_low;
+       ELSE
+          /*
+          || insert to bids AND update auction_items,
+          || bidders identified by session username
+          */
+          INSERT INTO bids (bidder, item_id, bid)
+          VALUES (USER, item_id_IN, bid_IN);
+          UPDATE auction_items
+          SET curr_bid = bid_IN
+          WHERE CURRENT OF auction_item_cur;
+          /*
+          || commit is important because it will send
+          || the alert notifications out on the item
+          */
+          COMMIT;
+          /*
+          || register for alerts on item since bidding,
+          || register after commit to avoid ORU-10002
+          */
+          DBMS_ALERT.REGISTER(item_id_IN);
+       END IF;
+       CLOSE auction_item_cur;
+    EXCEPTION
+       WHEN invalid_item
+          THEN
+             ROLLBACK WORK;
+             RAISE_APPLICATION_ERROR
+                (-20002,'PLACE_BID ERR: invalid item');
+       WHEN bid_too_low
+          THEN
+             ROLLBACK WORK;
+             RAISE_APPLICATION_ERROR
+                (-20003,'PLACE_BID ERR: bid too low');
+       WHEN item_is_closed
+          THEN
+             ROLLBACK WORK;
+             RAISE_APPLICATION_ERROR
+                (-20004,'PLACE_BID ERR: item is closed');
+       WHEN OTHERS
+          THEN
+             ROLLBACK WORK;
+             RAISE;
+    END place_bid; PROCEDURE close_item(item_id_IN IN VARCHAR2)
+    IS
+    BEGIN
+       UPDATE auction_items
+          SET status = 'CLOSED'
+        WHERE id = item_id_IN;    /* commit to raise alert */
+       COMMIT WORK;
+    END close_item; PROCEDURE watch_bidding(timeout_secs_IN IN NUMBER:=300)
+    IS
+       temp_name    VARCHAR2(30);
+       temp_message VARCHAR2(1800);
+       temp_status  INTEGER;
+    BEGIN
+       /*
+       || enter a loop which will be exited explicitly
+       || when a new bid from another user received or
+       || DBMS_ALERT.WAITANY call times out
+       */
+       LOOP
+          /*
+          || wait for up to 10 minutes for any alert
+          */
+          DBMS_ALERT.WAITANY
+             (temp_name, temp_message, temp_status, timeout_secs_IN);       IF temp_status = 1
+          THEN
+             /*
+             || timed out, return control to application
+             || so it can do something here if necessary
+             */
+             EXIT;       ELSIF temp_message = 'CLOSED'
+          THEN
+             /*
+             || unregister closed item, re-enter loop
+             */
+             DBMS_ALERT.REMOVE(temp_name);
+             DBMS_OUTPUT.PUT_LINE('Item '||temp_name||
+                                  ' has been closed.');       ELSIF temp_message = USER OR temp_message = 'OPEN'
+          THEN
+             /*
+             || bid was posted by this user (no need to alert)
+             || re-enter loop and wait for another
+             */
+             NULL;       ELSE
+             /*
+             || someone raised the bid on an item this user is bidding
+             || on, application should refresh user's display with a
+             || query on the high_bids view and/or alert visually
+             || (we will just display a message)
+             ||
+             || exit loop and return control to user so they can bid
+             */
+             DBMS_OUTPUT.PUT_LINE
+                ('Item '||temp_name||' has new bid: '||
+                  TO_CHAR(curr_bid(temp_name),'$999,999.00')||
+                 ' placed by: '||temp_message);
+             EXIT;
+          END IF;
+       END LOOP;  END watch_bidding;
+
+  END auction;
+  /
+
+ --End auction1.sql
+ --Auction2.sql
+
+CREATE OR REPLACE TRIGGER auction_items_ARU
+AFTER UPDATE ON auction_items
+FOR EACH ROW
+DECLARE
+   update_id EXCEPTION;
+BEGIN
+     /*
+     || trigger enforces no update of item_id and also
+     || signals an alert when status changes
+     */
+    -- Supply missing code.
+  IF :NEW.ID != :OLD.ID THEN
+     RAISE update_id;
+  END IF;
+  
+  IF :NEW.status != :OLD.status THEN
+     dbms_output.put_line('The status of the item has changed, it is now '||:NEW.status);
+  END IF;
+EXCEPTION
+    WHEN update_id THEN
+        dbms_output.put_line('You cannot update an item''s id ');       
+        raise_application_error(-20009,'UPDATE_BID ERR: cannot update item ID');
+END auction_items_ARU;
+/
+
+CREATE OR REPLACE TRIGGER bids_ARIUD
+AFTER INSERT OR UPDATE OR DELETE ON bids
+FOR EACH ROW
+DECLARE 
+   v_min_val auction_items.min_bid%TYPE;
+   bid_too_low EXCEPTION;
+BEGIN  
+     /*
+     || enforce all bids are final rule
+     */
+     -- Supply missing code.
+    IF inserting THEN
+       SELECT COALESCE(curr_bid,min_bid) INTO v_min_val
+       FROM auction_items WHERE id = :NEW.item_id AND status = 'OPEN';
+       
+       IF v_min_val >= :NEW.bid THEN
+           RAISE bid_too_low;
+       END IF;
+       
+       BEGIN 
+            SELECT 1 INTO v_min_val FROM auction_items 
+            WHERE id = :NEW.item_id AND status = 'OPEN' and curr_bid is null;
+       EXCEPTION 
+          WHEN no_data_found THEN
+             SELECT 2 INTO v_min_val FROM dual;
+       END;
+       IF v_min_val = 1 THEN
+            dbms_output.put_line('item '||:NEW.item_id||' has NEW bid:      $'||:NEW.bid||' placed BY: '||USER);
+       END IF;
+       UPDATE auction_items
+       set curr_bid = :new.bid where id = :new.item_id;
+    ELSE  
+       SELECT COALESCE(curr_bid,min_bid) INTO v_min_val
+       FROM auction_items WHERE ID = :OLD.item_id AND status = 'OPEN';
+       
+       IF v_min_val >= :OLD.bid THEN
+           RAISE bid_too_low;
+       END IF;
+       UPDATE auction_items
+       set curr_bid = :old.bid where id = :old.item_id;
+    END IF; 
+    
+EXCEPTION
+    WHEN no_data_found THEN
+       raise_application_error(-20008,'PLACE_BID ERR: bid doees not exist or is closed');       
+    WHEN bid_too_low THEN
+       raise_application_error(-20003,'PLACE_BID ERR: bid too low');  
+END bids_ARIUD;
+/
+
+INSERT INTO auction_items
+VALUES ('GB123','Antique gold bracelet',350.00,NULL,'OPEN');
+
+INSERT INTO auction_items
+VALUES ('PS447','Paul Stankard paperweight',550.00,NULL,'OPEN');
+
+INSERT INTO auction_items
+VALUES ('SC993','Schimmel print',750.00,NULL,'OPEN');
+
+COMMIT;
