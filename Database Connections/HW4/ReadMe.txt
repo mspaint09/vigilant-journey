@@ -1,0 +1,1 @@
+It got stuck on #10 running over and over again... picture attached.

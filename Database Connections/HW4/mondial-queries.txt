@@ -1,0 +1,47 @@
+/*****************************************************/
+/* CS31A Winter
+2017 */
+/* HW4: JDBC */
+/* Student Name: Samara Miramontes */
+/* SID: 20306996 */
+/****************************************************/
+
+/* 1. List all city information for cities with a population greater than 1 million. */
+
+select * from city where population > 1000000;
+
+/* 2. List the country codes of countries that have cities with a population greater than 1 million. */
+
+select country from city where population > 1000000;
+
+/* 3. For each country, list the city (or cities) with the largest population select the country code of the country, followed by the province that the city is located in, along with the city name. */
+
+select country, province, name, population from city where (country, population) in (select country, max(population) from city group by country order by country);
+
+/* 4. For each country, list its population and the total population of all neighboring countries select the country code of the country followed by its population, followed by the total population of all neighboring countries (and if it has no neighboring countries, NULL). */
+
+select c.code, c.name, c.population, string_agg(n.name::text,',') neighbor_list, sum(n.population) from country c join borders b on upper(c.code)=upper(b.country1) join country n on upper(b.country2)=upper(n.code) group by c.code, c.name, c.population;
+
+/* 5. List countries having a border with another country. */
+
+select distinct(country1) from borders where country2 is not null;
+
+/* 6. List countries having at least two borders with another country.*/
+
+select country1, c.name, count(country2) from borders b join country c on c.code=b.country1 group by country1, c.name having count(country2)>1;
+
+/* 7. List countries having no border with another country.*/
+
+select code, name from country where code not in (select distinct country1 from borders);
+
+/* 8. List all countries in Europe or Asia. */
+
+select e.country, c.name, cn.name from encompasses e join country c on e.country = c.code join continent cn on cn.name = e.continent where cn.name in ('Europe','Asia') order by cn.name;
+
+/* 9. List all countries that are located in both Europe and Asia. */
+
+select e.country, c.name, count(e.continent) from encompasses e join country c on e.country = c.code where e.continent in ('Europe','Asia') group by e.country, c.name having count(e.continent)>1;
+
+/* 10. Find the city (or cities) with the largest population.*/
+
+select name, population from city where population is not null and population = (select max(population) from city) order by population desc;
