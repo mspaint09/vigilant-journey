@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<!-- H5FormValidation.html -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Register Here</title>
+  <script type = "text/javascript" src="http://code.jquery.com/jquery-3.2.1.min.js"></script>
+  <script type = "text/javascript" src="test.js"></script>
+</head>
+ 
+<body>
+  <h2>Register Here</h2>
+ 
+  <form id="formTest" method="get" action="processData">
+    <table>
+    
+	<span id="errMsg"></span>
+	
+    <tr>
+      <td><label for="txtEmail">Email<span class="required">*</span></label></td>
+      <td><input type="email" id="txtEmail" name="email" required></td>
+    </tr>
+    <tr>
+      <td><label for="txtPassword">Password<span class="required">*</span></label></td>
+      <td><input type="password" id="txtPassword" name="password" required></td>
+    </tr>
+    <tr>
+      <td><label for="txtPWVerified">Verify Password<span class="required">*</span></label></td>
+      <td><input type="password" id="txtPWVerified" name="pwVerified" required></td>
+    </tr>
+    
+    <tr>
+      <td>&nbsp;</td>
+      <td>
+          <input type="reset" value="CLEAR" id="btnReset"></td>
+    </tr>
+    </table>
+  </form>
+</body>
+</html>
