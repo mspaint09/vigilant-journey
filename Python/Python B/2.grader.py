@@ -1,9 +1,6 @@
 # -----------------------------------------------------------------------------
 # Name:    grader
 # Purpose: CS 21A Assignment # 2
-#
-# Author: Samara Miramontes
-# Date:    Fall 2017
 # -----------------------------------------------------------------------------
 """
 Enter your docstring with a one-line overview here
