@@ -1,0 +1,29 @@
+/* 1.For each owner, find the boat with the large size*/
+select B1.owner, B1.name from BOAT B1
+where B1.size =
+(select max(B2.size)
+from BOAT B2
+where B2.owner = B1.owner );
+
+/* 2.List each owner with the number of contacts to him/her*/
+select owner_a, count(*) from CONTACT
+group by owner_a;
+
+/* 3.Which owner(s) have at least 2 contacts, show the result in descending order */
+select owner_a, count(*) as Num_Of_Contacts from CONTACT
+group by owner_a
+having count(*) >= 2
+order by Num_Of_Contacts desc;
+
+/* 4.List all Boats that a Owner have, where the owner is not contact with anyone */
+select distinct B1.name from BOAT B1
+where B1.name not in
+(select BOAT.name
+from BOAT, CONTACT
+where BOAT.owner = CONTACT.owner_a);
+
+/* 5.For each boat, list its color, and the total number of boats which have same color*/
+select B1.name, B1.color, (select count(*)
+from BOAT B2
+where B2.color = B1.color group by B1.name)
+from BOAT B1;

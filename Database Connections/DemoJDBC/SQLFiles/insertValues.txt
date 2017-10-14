@@ -1,0 +1,16 @@
+insert into owner values (1,'Alice Newton');
+insert into owner values (2,'Bob Hanson');
+insert into owner values (3,'Charlie Keith');
+insert into owner values (4,'Dylan Stoch');
+insert into owner values (5,'Eli Vandal');	
+insert into boat values ('Titan',1,3,'Yellow');
+insert into boat values ('USS',1,2,'White');
+insert into boat values ('Marysome',2,4,'Yellow');
+insert into boat values ('Sammuel',2,1,'Red');
+insert into boat values ('Queen',3,2,'White');
+insert into boat values ('Haystick',4,3,'White');
+insert into boat values ('Solitude',5,2,'Black');
+insert into contact values (1,2);
+insert into contact values (1,3);
+insert into contact values (1,4);
+insert into contact values (2,3);

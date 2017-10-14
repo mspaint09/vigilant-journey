@@ -1,0 +1,2 @@
+/* 1. List all state information */
+select * from state;
