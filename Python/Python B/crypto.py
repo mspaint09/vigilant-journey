@@ -2,7 +2,7 @@
 # Name:        translate
 # Purpose:     assignment # 3
 #
-# Author:   Samara Miramontes
+# Author:   
 # Date:     10/16/2017
 # -----------------------------------------------------------------------------
 """
